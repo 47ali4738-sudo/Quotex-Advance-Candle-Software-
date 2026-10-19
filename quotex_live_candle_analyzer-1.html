@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ProLizer — Live Candle Analyzer</title>
+<style>
+
+:root{color-scheme:dark;--bg:#080d18;--panel:#101827;--panel2:#0c1421;--line:#243247;--text:#e8eef8;--muted:#91a0b7;--green:#28d99a;--red:#ff657a;--yellow:#f5c96a;--blue:#6ea8ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.app{max-width:1150px;margin:auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:11px}.logo{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#1b8cfa,#6d56ff);font-weight:900;font-size:18px}
+h1{font-size:20px;line-height:1.2;margin:0;letter-spacing:.2px} .sub{color:var(--muted);font-size:12px;margin-top:4px}
+.pill{border:1px solid #725b29;background:#302713;color:#ffdc8b;border-radius:999px;padding:7px 11px;font-size:11px;font-weight:800;letter-spacing:.5px}
+.notice{border:1px solid #725b29;background:#241f13;color:#f6d991;padding:12px 14px;border-radius:12px;margin:0 0 16px;font-size:12px}
+.controls,.panel{background:var(--panel);border:1px solid var(--line);border-radius:15px}
+.controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:14px;margin-bottom:14px}
+.field label{display:block;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin:0 0 6px}
+select,button{width:100%;min-height:42px;border-radius:9px;border:1px solid #304158;background:#0b1320;color:var(--text);padding:9px 11px;font:inherit}
+button{cursor:pointer;font-weight:800;background:linear-gradient(135deg,#277cf4,#6856ef);border:0}
+button.secondary{background:#172235;border:1px solid #304158}
+.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,1fr);gap:14px}
+.panel{padding:15px;min-width:0}.panelhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+h2{font-size:14px;margin:0}.tag{font-size:10px;color:var(--muted);border:1px solid var(--line);padding:4px 7px;border-radius:6px}
+.chartwrap{position:relative;border:1px solid #1f2c40;border-radius:11px;background:#080f1b;overflow:hidden}
+canvas{display:block;width:100%;height:310px}
+.chartlegend{display:flex;gap:13px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:10px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:13px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px}
+.stat .k{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}.stat .v{font-size:18px;font-weight:850;margin-top:4px}
+.signal{border-radius:12px;padding:15px;background:#0b1721;border:1px solid #235540;margin-bottom:12px}
+.signal.wait{border-color:#725b29;background:#211c12}.signal.sell{border-color:#653142;background:#21121a}
+.signalrow{display:flex;justify-content:space-between;align-items:center;gap:10px}.direction{font-size:26px;font-weight:950;letter-spacing:1px;color:var(--green)}.sell .direction{color:var(--red)}.wait .direction{color:var(--yellow)}
+.small{font-size:11px;color:var(--muted)}.confidence{font-size:22px;font-weight:900}.meter{height:6px;background:#263449;border-radius:10px;overflow:hidden;margin:9px 0}.meter span{display:block;height:100%;width:0;background:var(--green);transition:width .25s}
+.future{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.futurebox{border:1px dashed #51617a;border-radius:10px;padding:12px;background:#0b1320}
+.futurebox strong{display:block;font-size:12px;margin-bottom:6px}.futurebar{height:55px;display:flex;align-items:center;justify-content:center;gap:3px}
+.mini-candle{width:12px;position:relative;height:38px}.mini-candle:before{content:"";position:absolute;left:5px;top:0;height:100%;width:2px;background:currentColor}.mini-candle:after{content:"";position:absolute;left:1px;top:9px;width:10px;height:21px;background:currentColor;border-radius:1px}.bull{color:var(--green)}.bear{color:var(--red)}.predicted{border-color:#7b6330;background:#19170f}.predicted .futurebar{opacity:.9}
+.history{width:100%;border-collapse:collapse;font-size:11px}.history th,.history td{text-align:left;padding:9px 5px;border-bottom:1px solid var(--line)}.history th{color:var(--muted);font-weight:700}.history td:last-child,.history th:last-child{text-align:right}
+.status{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px;margin-top:12px}.status i{width:7px;height:7px;border-radius:50%;background:var(--yellow);display:inline-block}
+.footer{color:var(--muted);font-size:11px;margin:15px 2px 0;line-height:1.6}
+@media(max-width:760px){.app{padding:12px}.controls{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}canvas{height:260px}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.stat .v{font-size:15px}}
+@media(max-width:390px){.controls{grid-template-columns:1fr 1fr}.stats{gap:5px}.stat{padding:8px}.stat .v{font-size:13px}}
+
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand"><div class="logo">PL</div><div><h1>PRO LIZER · CANDLE ANALYZER</h1><div class="sub">Live forex market data · one estimated candle ahead</div></div></div>
+  <span class="pill" id="connectionPill">CONNECTING…</span>
+</header>
+<div class="notice"><strong>Read this first:</strong> This version requests public live-market candles from biquote.io (a third-party feed), not directly from Quotex. The prices and available pairs may differ from Quotex, and OTC pairs are not provided by this feed. The future candle is an estimate only, not a guaranteed prediction or win probability.</div>
+<section class="controls">
+  <div class="field"><label for="market">Market</label><select id="market"><option value="live">Live market data</option><option value="otc" disabled>Quotex OTC — data feed unavailable</option></select></div>
+  <div class="field"><label for="pair">Available forex pairs</label><select id="pair"><option>Loading pairs…</option></select></div>
+  <div class="field"><label for="timeframe">Timeframe</label><select id="timeframe"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m">15 minutes</option><option value="30m">30 minutes</option></select></div>
+  <div class="field"><label for="horizon">Prediction horizon</label><select id="horizon"><option value="1">1 future candle</option></select></div>
+</section>
+<div class="layout">
+  <main class="panel">
+    <div class="panelhead"><h2>Market candlesticks</h2><span class="tag" id="chartTag">Waiting for data</span></div>
+    <div class="chartwrap"><canvas id="chart" width="900" height="420" aria-label="Market candlestick chart with an estimated future candle"></canvas></div>
+    <div class="chartlegend"><span><i class="dot" style="background:var(--green)"></i>Market candle (bullish)</span><span><i class="dot" style="background:var(--red)"></i>Market candle (bearish)</span><span><i class="dot" style="background:var(--yellow)"></i>Estimated next candle</span></div>
+    <div class="stats">
+      <div class="stat"><div class="k">Trend bias</div><div class="v" id="trend">—</div></div>
+      <div class="stat"><div class="k">Avg candle range</div><div class="v" id="volatility">—</div></div>
+      <div class="stat"><div class="k">Next refresh</div><div class="v" id="timer">20s</div></div>
+    </div>
+  </main>
+  <aside class="panel">
+    <div class="panelhead"><h2>Next-candle estimate</h2><span class="tag">1 CANDLE AHEAD</span></div>
+    <div class="signal wait" id="signalCard">
+      <div class="signalrow"><div><div class="small">ANALYSIS BIAS</div><div class="direction" id="direction">WAIT</div></div><div style="text-align:right"><div class="small">Heuristic score</div><div class="confidence" id="confidence">—</div></div></div>
+      <div class="meter"><span id="meterFill"></span></div>
+      <div class="small" id="reason">Waiting for market candles…</div>
+    </div>
+    <div class="future">
+      <div class="futurebox"><strong>Last closed candle</strong><div class="futurebar" id="lastMini"></div><div class="small" id="lastText">—</div></div>
+      <div class="futurebox predicted"><strong>Estimated next candle</strong><div class="futurebar" id="nextMini"></div><div class="small" id="nextText">Estimate only</div></div>
+    </div>
+    <div class="status"><i id="statusDot"></i><span id="dataStatus">Connecting to third-party data feed…</span></div>
+    <button class="secondary" id="refresh" style="margin-top:13px">Refresh market data</button>
+    <div style="margin-top:18px" class="panelhead"><h2>Recent estimates</h2><span class="tag">THIS SESSION</span></div>
+    <table class="history"><thead><tr><th>Time</th><th>Bias</th><th>Score</th></tr></thead><tbody id="history"><tr><td colspan="3" class="small">No estimates yet.</td></tr></tbody></table>
+  </aside>
+</div>
+<div class="footer">Data source: biquote.io public market-data API (third-party, subject to availability and its terms). This page does not log in to Quotex, read its private prices, or place trades. Forex/CFD feed candles are not guaranteed to match Quotex quotes. OTC mode is intentionally unavailable until a matching, authorized OTC data source is configured. The heuristic score is not a verified probability or win rate. Check feed timestamps and test on a demo account before relying on any analysis.</div>
+</div>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const API="https://biquote.io/api";
+  let candles=[],history=[],symbol="",timer=20,refreshHandle=null,fetchBusy=false;
+  const fmt=(n)=>Number(n).toLocaleString(undefined,{maximumFractionDigits:6});
+  function interval(){return $("timeframe").value;}
+  function setStatus(text,ok){
+    $("dataStatus").textContent=text;
+    $("statusDot").style.background=ok?"var(--green)":"var(--yellow)";
+    $("connectionPill").textContent=ok?"LIVE FEED CONNECTED":"FEED STATUS";
+    $("connectionPill").style.borderColor=ok?"#235540":"#725b29";
+    $("connectionPill").style.background=ok?"#0c241c":"#302713";
+    $("connectionPill").style.color=ok?"#80f0c0":"#ffdc8b";
+  }
+  async function loadSymbols(){
+    try{
+      const r=await fetch(API+"/active",{cache:"no-store"});
+      if(!r.ok)throw new Error("Symbol list HTTP "+r.status);
+      const data=await r.json();
+      const fx=(Array.isArray(data)?data:[])
+        .filter(x=>String(x.type||"").toLowerCase()==="forex" && x.name)
+        .sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+      if(!fx.length)throw new Error("No active forex symbols returned");
+      const sel=$("pair");sel.innerHTML="";
+      fx.forEach(x=>{const o=document.createElement("option");o.value=x.name;o.textContent=x.name+(x.description?" — "+x.description:"");sel.appendChild(o);});
+      symbol=sel.value;setStatus("Pair list loaded · requesting latest candles",true);
+      await loadCandles();
+    }catch(e){
+      setStatus("Could not load live pair list: "+e.message,false);
+      $("pair").innerHTML='<option value="EURUSD">EURUSD (manual fallback)</option><option value="GBPUSD">GBPUSD</option><option value="USDJPY">USDJPY</option><option value="AUDUSD">AUDUSD</option>';
+      symbol=$("pair").value;await loadCandles();
+    }
+  }
+  async function loadCandles(){
+    if(fetchBusy)return;fetchBusy=true;
+    const requested=$("pair").value||symbol||"EURUSD";symbol=requested;
+    const tf=interval();
+    try{
+      const url=API+"/"+encodeURIComponent(symbol)+"/ohlc?interval="+encodeURIComponent(tf)+"&limit=80";
+      const r=await fetch(url,{cache:"no-store"});
+      if(!r.ok)throw new Error("Candle feed HTTP "+r.status);
+      const data=await r.json();
+      if(!Array.isArray(data.bars))throw new Error("Unexpected candle response");
+      const bars=data.bars.filter(b=>Number.isFinite(Number(b.open))&&Number.isFinite(Number(b.high))&&Number.isFinite(Number(b.low))&&Number.isFinite(Number(b.close)));
+      if(bars.length<10)throw new Error("Not enough candle history for analysis");
+      candles=bars.slice().reverse().map(b=>({o:+b.open,h:+b.high,l:+b.low,c:+b.close,t:b.openTime,open:!!b.isOpen}));
+      const last=candles[candles.length-1];
+      const closed=candles.filter(c=>!c.open);
+      if(closed.length<10)throw new Error("Waiting for more closed candles");
+      analyze(closed);
+      const stamp=last.t?new Date(last.t).toLocaleTimeString():"timestamp unavailable";
+      $("chartTag").textContent=symbol+" · "+tf.toUpperCase()+" · "+stamp;
+      setStatus("Market candles received · latest bar "+stamp+" · external feed",true);
+      draw(closed);
+      timer=20;
+    }catch(e){
+      setStatus("Live data unavailable: "+e.message+" · retrying",false);
+      $("reason").textContent="No reliable candle data available; no directional estimate shown.";
+      $("direction").textContent="WAIT";$("confidence").textContent="—";
+      $("signalCard").className="signal wait";$("meterFill").style.width="0%";
+      $("chartTag").textContent=symbol+" · "+tf.toUpperCase()+" · FEED ERROR";
+    }finally{fetchBusy=false;}
+  }
+  function analyze(closed){
+    const recent=closed.slice(-8),last=recent[recent.length-1];
+    const momentum=recent.reduce((s,c)=>s+(c.c-c.o),0);
+    const green=recent.filter(c=>c.c>c.o).length,red=recent.filter(c=>c.c<c.o).length;
+    const body=last.c-last.o,range=Math.max(last.h-last.l,1e-9);
+    const upper=last.h-Math.max(last.o,last.c),lower=Math.min(last.o,last.c)-last.l;
+    let bias="WAIT",dir=0,score=51;
+    if(momentum>0&&green>=5&&body>0){bias="BUY";dir=1;}
+    else if(momentum<0&&red>=5&&body<0){bias="SELL";dir=-1;}
+    const avg=recent.reduce((s,c)=>s+(c.h-c.l),0)/recent.length;
+    if(dir!==0){
+      const aligned=Math.max(green,red);
+      score=Math.min(74,Math.round(52+(aligned-5)*4+Math.min(8,Math.abs(momentum)/(avg*8)*8)));
+      if((dir===1&&upper>Math.abs(body)*1.5)||(dir===-1&&lower>Math.abs(body)*1.5))score=Math.max(51,score-7);
+    }
+    const estimateDir=dir||0;
+    const step=Math.max(avg*.55,Math.abs(body)*.35);
+    const projectedClose=last.c+(estimateDir===0?0:estimateDir*step);
+    const next={o:last.c,c:projectedClose,h:Math.max(last.c,projectedClose)+avg*.12,l:Math.min(last.c,projectedClose)-avg*.12,estimated:true};
+    $("trend").textContent=momentum>0?"UP":momentum<0?"DOWN":"FLAT";
+    $("trend").style.color=momentum>0?"var(--green)":momentum<0?"var(--red)":"var(--yellow)";
+    $("volatility").textContent=fmt(avg);
+    $("direction").textContent=bias;$("confidence").textContent=dir?score+"/100":"—";
+    $("meterFill").style.width=(dir?score:0)+"%";
+    $("signalCard").className="signal "+(bias==="WAIT"?"wait":bias==="SELL"?"sell":"");
+    $("meterFill").style.background=bias==="SELL"?"var(--red)":bias==="WAIT"?"var(--yellow)":"var(--green)";
+    $("reason").textContent=bias==="WAIT"?"Mixed candle momentum; no directional estimate.":(bias==="BUY"?"Bullish":"Bearish")+" bias from "+Math.max(green,red)+" of the last 8 closed candles. Heuristic only; not a calibrated probability.";
+    $("lastText").textContent="O "+fmt(last.o)+" · C "+fmt(last.c);
+    $("nextText").textContent=(dir===1?"Bullish estimate":dir===-1?"Bearish estimate":"Direction unclear")+" · "+fmt(next.c);
+    mini("lastMini",last,false);mini("nextMini",next,true);
+    const now=new Date();history.unshift({time:now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"}),bias,score:dir?score:"—"});history=history.slice(0,5);
+    $("history").innerHTML=history.map(x=>'<tr><td>'+x.time+'</td><td style="color:'+(x.bias==="BUY"?"var(--green)":x.bias==="SELL"?"var(--red)":"var(--yellow)")+';font-weight:800">'+x.bias+'</td><td>'+x.score+'</td></tr>').join("");
+    window._future=next;
+  }
+  function mini(id,c,pred){
+    const cls=c.c>c.o?"bull":c.c<c.o?"bear":"";
+    $(id).innerHTML='<span class="mini-candle '+cls+'" style="'+(pred?'opacity:.75':'')+'"></span>';
+  }
+  function draw(closed){
+    const canvas=$("chart"),ctx=canvas.getContext("2d"),w=canvas.width,h=canvas.height;
+    ctx.clearRect(0,0,w,h);ctx.fillStyle="#080f1b";ctx.fillRect(0,0,w,h);
+    const future=window._future;
+    const all=closed.slice(-55).concat(future?[future]:[]);
+    let min=Math.min(...all.map(c=>c.l)),max=Math.max(...all.map(c=>c.h));const pad=(max-min)*.12||.0001;min-=pad;max+=pad;
+    const y=v=>h-28-(v-min)/(max-min)*(h-55),step=(w-55)/all.length;
+    ctx.strokeStyle="#1b293b";ctx.lineWidth=1;
+    for(let i=0;i<5;i++){let yy=18+i*(h-55)/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();}
+    all.forEach((c,i)=>{
+      const x=25+i*step+step/2,actual=i<all.length-1,color=c.c>=c.o?"#28d99a":"#ff657a";
+      ctx.strokeStyle=actual?color:"#f5c96a";ctx.fillStyle=actual?color:"#f5c96a";ctx.lineWidth=actual?2:2;
+      ctx.beginPath();ctx.moveTo(x,y(c.h));ctx.lineTo(x,y(c.l));ctx.stroke();
+      const top=y(Math.max(c.o,c.c)),bottom=y(Math.min(c.o,c.c)),bodyH=Math.max(2,bottom-top),bw=Math.max(4,step*.48);
+      if(actual)ctx.fillRect(x-bw/2,top,bw,bodyH);
+      else{ctx.setLineDash([4,3]);ctx.strokeRect(x-bw/2,top,bw,bodyH);ctx.setLineDash([]);ctx.fillStyle="rgba(245,201,106,.22)";ctx.fillRect(x-bw/2,top,bw,bodyH);ctx.fillStyle="#f5c96a";ctx.font="bold 12px system-ui";ctx.fillText("EST",Math.min(w-34,x-12),Math.max(14,top-8));}
+    });
+    ctx.fillStyle="#8c9bb0";ctx.font="11px system-ui";ctx.fillText("CLOSED MARKET CANDLES",10,h-8);ctx.fillStyle="#f5c96a";ctx.fillText("ESTIMATED NEXT",w-128,h-8);
+  }
+  $("pair").addEventListener("change",loadCandles);
+  $("timeframe").addEventListener("change",loadCandles);
+  $("refresh").addEventListener("click",loadCandles);
+  $("market").addEventListener("change",()=>{if($("market").value==="otc"){setStatus("OTC feed is not configured",false);}else loadCandles();});
+  setInterval(()=>{timer--;if(timer<0){timer=20;loadCandles();}$("timer").textContent=timer+"s";},1000);
+  loadSymbols();
+})();
+</script>
+</body>
+</html>
